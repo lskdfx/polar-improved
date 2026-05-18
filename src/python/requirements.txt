@@ -1,0 +1,6 @@
+matplotlib
+sympy
+numpy
+lark
+PyQt6
+antlr4-python3-runtime==4.11.1
