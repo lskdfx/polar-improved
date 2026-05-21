@@ -1,12 +1,24 @@
-from sympy import pi, solveset, nsolve, Eq, Interval, FiniteSet, N, lambdify
+from sympy import pi, Interval, solveset, Eq, FiniteSet, N, lambdify
 from sympy.abc import theta
 from scipy.optimize import fsolve
 import numpy as np
+from math import ceil
 
 from time import monotonic
 
 STRATEGY = "fsolve"
 PRECISION = 9
+POINTS_PER_ONE = 100
+
+def domain_linspace(domain):
+    if not isinstance(domain, Interval):
+        raise Exception("invalid domain");
+
+    start = float(domain.start);
+    end = float(domain.end);
+    d_range = end - start
+    points = ceil(d_range * POINTS_PER_ONE)
+    return [np.linspace(start, end, num=points, dtype=float), start, end]
 
 def solveset_polar(exprs, domain, solutions):
     eqn = Eq(exprs[0], exprs[1])
@@ -21,12 +33,7 @@ def solveset_polar(exprs, domain, solutions):
 def fsolve_polar(exprs, domain, solutions):
     eqn = lambdify(theta, (exprs[0]) - (exprs[1]), modules=["numpy"])
 
-    if not isinstance(domain, Interval):
-        raise Exception("invalid domain");
-
-    d_start = float(domain.start)
-    d_end = float(domain.end)
-    guesses = np.linspace(d_start, d_end, num=1000, dtype=float)
+    guesses, d_start, d_end = domain_linspace(domain)
     solves = fsolve(eqn, guesses);
 
     solves = solves[(solves >= d_start) & (solves <= d_end)];
@@ -37,8 +44,7 @@ def fsolve_polar(exprs, domain, solutions):
         r = exprs[0].evalf(subs={theta: theta_f}, n=PRECISION)
         solutions.append({ "solution": "standard", "theta": theta_f, "r": r })
 
-def solve_polar_intersections(exprs):
-    domain = Interval(0, 2*pi)
+def solve_polar_intersections(exprs, domain):
     solutions = []
     
     solve_before = monotonic();
@@ -61,17 +67,22 @@ def solve_polar_intersections(exprs):
 
 def transform_solution(solution):
     if solution["solution"] == "standard" and solution["r"] < 0:
+        solution["transformed"] = True;
+        solution["old_theta"] = solution["theta"];
+        solution["old_r"] = solution["r"];
         solution["theta"] += np.pi;
         solution["r"] *= -1;
+    else:
+        solution["transformed"] = False
     return solution;
 
-def polar_get_info(expr):
-    solutions = solve_polar_intersections(expr);
+def polar_get_info(expr, domain):
+    solutions = solve_polar_intersections(expr, domain);
 
     func1 = lambdify(theta, expr[0], modules="numpy");
     func2 = lambdify(theta, expr[1], modules="numpy");
 
-    space = np.linspace(-2*np.pi, 2*np.pi, 1000);
+    space, _, _ = domain_linspace(domain);
 
     range1 = func1(space);
     range2 = func2(space);
