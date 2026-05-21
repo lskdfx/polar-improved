@@ -58,3 +58,28 @@ def solve_polar_intersections(exprs):
         solutions.append({ "solution": "origin" });
 
     return solutions
+
+def transform_solution(solution):
+    if solution["solution"] == "standard" and solution["r"] < 0:
+        solution["theta"] += np.pi;
+        solution["r"] *= -1;
+    return solution;
+
+def polar_get_info(expr):
+    solutions = solve_polar_intersections(expr);
+
+    func1 = lambdify(theta, expr[0], modules="numpy");
+    func2 = lambdify(theta, expr[1], modules="numpy");
+
+    space = np.linspace(-2*np.pi, 2*np.pi, 1000);
+
+    range1 = func1(space);
+    range2 = func2(space);
+
+    # apply negative transformation. matplotlib doesn't do this?
+    space1 = space + (range1 < 0) * np.pi;
+    space2 = space + (range2 < 0) * np.pi;
+    range1 = np.abs(range1);
+    range2 = np.abs(range2);
+
+    return { "solutions": [transform_solution(solution) for solution in solutions], "expr1": [space1, range1], "expr2": [space2, range2] };
