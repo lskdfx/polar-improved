@@ -1,0 +1,11 @@
+include dash_mathlive/dash_mathlive.min.js
+include dash_mathlive/dash_mathlive.min.js.map
+include dash_mathlive/async-*.js
+include dash_mathlive/async-*.js.map
+include dash_mathlive/*-shared.js
+include dash_mathlive/*-shared.js.map
+include dash_mathlive/metadata.json
+include dash_mathlive/package-info.json
+include README.md
+include LICENSE
+include package.json
