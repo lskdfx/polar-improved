@@ -1,0 +1,17 @@
+LICENSE
+MANIFEST.in
+README.md
+package.json
+setup.py
+dash_mathlive/__init__.py
+dash_mathlive/_imports_.py
+dash_mathlive/dash_mathlive.min.js
+dash_mathlive/dash_mathlive.min.js.map
+dash_mathlive/dash_mathlive.py
+dash_mathlive/metadata.json
+dash_mathlive/package-info.json
+dash_mathlive.egg-info/PKG-INFO
+dash_mathlive.egg-info/SOURCES.txt
+dash_mathlive.egg-info/dependency_links.txt
+dash_mathlive.egg-info/top_level.txt
+tests/test_usage.py
