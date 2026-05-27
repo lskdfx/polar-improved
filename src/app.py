@@ -296,6 +296,7 @@ def update_domain(start, end):
 
 
 app.clientside_callback(
+    """function(...vals) { return vals; }""",
     Output("debounced-inputs", "data"),
     [Input(f"eq-{i}", "value") for i in range(N_INPUTS)],
     prevent_initial_call=True,
@@ -313,27 +314,35 @@ def _split_curve(theta, r):
 
 
 def _sample_curve(theta, r, t_target, tol=1e-2):
+    r_vals, _ = _sample_curve_with_theta(theta, r, t_target, tol)
+    return r_vals
+
+
+def _sample_curve_with_theta(theta, r, t_target, tol=1e-2):
     theta = np.asarray(theta, dtype=float)
     r = np.asarray(r, dtype=float)
     t_target = np.atleast_1d(np.asarray(t_target, dtype=float))
     segments = _split_curve(theta, r)
-    result = np.full_like(t_target, np.nan)
+    result_r = np.full_like(t_target, np.nan)
+    result_t = np.full_like(t_target, np.nan)
     for seg_t, seg_r in segments:
         is_wrapped = seg_t.max() > 2 * np.pi + 1e-6
         if is_wrapped:
             t_mapped = t_target + np.pi
             mask = (t_mapped >= seg_t[0] - tol) & (t_mapped <= seg_t[-1] + tol)
             if np.any(mask):
-                free = mask & np.isnan(result)
+                free = mask & np.isnan(result_r)
                 if np.any(free):
-                    result[free] = np.interp(t_mapped[free], seg_t, seg_r)
+                    result_r[free] = np.interp(t_mapped[free], seg_t, seg_r)
+                    result_t[free] = t_target[free] + np.pi
         else:
             mask = (t_target >= seg_t[0] - tol) & (t_target <= seg_t[-1] + tol)
             if np.any(mask):
-                free = mask & np.isnan(result)
+                free = mask & np.isnan(result_r)
                 if np.any(free):
-                    result[free] = np.interp(t_target[free], seg_t, seg_r)
-    return result
+                    result_r[free] = np.interp(t_target[free], seg_t, seg_r)
+                    result_t[free] = t_target[free]
+    return result_r, result_t
 
 
 def _make_serialisable(regions):
@@ -512,7 +521,7 @@ def _region_polygon(region, curves):
     inner_idx = region["inner_idx"]
 
     outer_curve = curves[outer_idx]
-    outer_r = _sample_curve(outer_curve["theta"], outer_curve["r"], tgrid)
+    outer_r, outer_t = _sample_curve_with_theta(outer_curve["theta"], outer_curve["r"], tgrid)
     if np.any(np.isnan(outer_r)):
         return [], []
 
@@ -520,14 +529,24 @@ def _region_polygon(region, curves):
         inner_r = np.zeros(n)
     else:
         inner_curve = curves[inner_idx]
-        inner_r = _sample_curve(inner_curve["theta"], inner_curve["r"], tgrid)
+        inner_r, inner_t = _sample_curve_with_theta(inner_curve["theta"], inner_curve["r"], tgrid)
         if np.any(np.isnan(inner_r)):
             return [], []
 
     if np.any(inner_r > outer_r + 1e-4):
         return [], []
 
-    theta_poly = np.concatenate([tgrid, tgrid[::-1]])
+    needs_shift = False
+    if inner_idx >= 0 and np.any(np.abs(inner_t - tgrid) > 1e-6):
+        needs_shift = True
+    elif np.any(np.abs(outer_t - tgrid) > 1e-6):
+        needs_shift = True
+
+    if needs_shift:
+        theta_poly = np.concatenate([tgrid + np.pi, (tgrid + np.pi)[::-1]])
+    else:
+        theta_poly = np.concatenate([tgrid, tgrid[::-1]])
+
     r_poly = np.concatenate([outer_r, inner_r[::-1]])
     return np.degrees(theta_poly).tolist(), r_poly.tolist()
 
@@ -629,24 +648,31 @@ def handle_click(click_data, graph_data, fills):
     for reg in regions:
         if reg["area"] <= 1e-6:
             continue
-        if not (reg["theta1"] <= theta_rad <= reg["theta2"]):
-            continue
-        outer_c = curves[reg["outer_idx"]]
-        outer_r = float(_sample_curve(outer_c["theta"], outer_c["r"], theta_rad)[0])
-        inner_r = (
-            0.0
-            if reg["inner_idx"] == -1
-            else float(
-                _sample_curve(
-                    curves[reg["inner_idx"]]["theta"],
-                    curves[reg["inner_idx"]]["r"],
-                    theta_rad,
-                )[0]
+        theta_candidates = [theta_rad]
+        theta_shifted = (theta_rad - np.pi) % (2 * np.pi)
+        if abs(theta_shifted - theta_rad) > 1e-6:
+            theta_candidates.append(theta_shifted)
+        for test_theta in theta_candidates:
+            if not (reg["theta1"] <= test_theta <= reg["theta2"]):
+                continue
+            outer_c = curves[reg["outer_idx"]]
+            outer_r = float(_sample_curve(outer_c["theta"], outer_c["r"], test_theta)[0])
+            inner_r = (
+                0.0
+                if reg["inner_idx"] == -1
+                else float(
+                    _sample_curve(
+                        curves[reg["inner_idx"]]["theta"],
+                        curves[reg["inner_idx"]]["r"],
+                        test_theta,
+                    )[0]
+                )
             )
-        )
-        tol = 0.02
-        if inner_r - tol <= r_val <= outer_r + tol:
-            clicked = reg
+            tol = 0.02
+            if inner_r - tol <= r_val <= outer_r + tol:
+                clicked = reg
+                break
+        if clicked:
             break
 
     if clicked is None:
