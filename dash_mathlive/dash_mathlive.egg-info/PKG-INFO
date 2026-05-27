@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: dash_mathlive
+Version: 0.0.1
+Summary: Project Description
+Author: Adit Gupta <guptaditz@gmail.com>
+License: MIT
+Classifier: Framework :: Dash
+Dynamic: author
+Dynamic: classifier
+Dynamic: license
+Dynamic: summary

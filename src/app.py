@@ -302,7 +302,6 @@ app.clientside_callback(
     prevent_initial_call=True,
 )
 
-
 def _split_curve(theta, r):
     theta = np.asarray(theta, dtype=float)
     r = np.asarray(r, dtype=float)
