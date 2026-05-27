@@ -1,17 +1,12 @@
 from sympy.parsing.latex import parse_latex
-from sympy.abc import theta
+from sympy import UnevaluatedExpr
+from sympy.abc import r
 
 BACKEND = "antlr"
 STRICT = False
 
-def parse_polar(eqs):
-    res = []
-    err = []
-    for eq in eqs:
-        try:
-            res.append(parse_latex(eq, strict=STRICT, backend=BACKEND))
-            err.append(None)
-        except Exception as e:
-            res.append(None)
-            err.append(str(e))
-    return (res, err)
+def parse_polar(eq1: string, eq2: string):
+    expr1 = parse_latex(eq1, strict=STRICT, backend=BACKEND)
+    expr2 = parse_latex(eq2, strict=STRICT, backend=BACKEND)
+
+    return [expr1, expr2];
