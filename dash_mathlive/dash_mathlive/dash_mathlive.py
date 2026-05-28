@@ -29,7 +29,11 @@ Keyword arguments:
     The ID used to identify this component in Dash callbacks.
 
 - value (string; optional):
-    The value displayed in the input."""
+    The value displayed in the input.
+
+- debounce (number; default 0):
+    Milliseconds to wait after the last keystroke before reporting the new
+    value to Dash. 0 (default) reports on every input event."""
     _children_props: typing.List[str] = []
     _base_nodes = ['children']
     _namespace = 'dash_mathlive'
@@ -40,11 +44,12 @@ Keyword arguments:
         self,
         id: typing.Optional[typing.Union[str, dict]] = None,
         value: typing.Optional[str] = None,
+        debounce: typing.Optional[NumberType] = None,
         **kwargs
     ):
-        self._prop_names = ['id', 'value']
+        self._prop_names = ['id', 'value', 'debounce']
         self._valid_wildcard_attributes =            []
-        self.available_properties = ['id', 'value']
+        self.available_properties = ['id', 'value', 'debounce']
         self.available_wildcard_properties =            []
         _explicit_args = kwargs.pop('_explicit_args')
         _locals = locals()

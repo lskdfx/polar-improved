@@ -26,8 +26,8 @@ def solveset_polar(exprs, domain, solutions):
     solves = solveset(eqn, theta, domain=domain)
     if isinstance(solves, FiniteSet):
         for theta_sym in solves:
-            theta_float = N(theta_sym, PRECISION)
-            r = exprs[0].evalf(subs={theta: theta_sym}, n=PRECISION)
+            theta_float = float(N(theta_sym, PRECISION))
+            r = float(exprs[0].evalf(subs={theta: theta_sym}, n=PRECISION))
             solutions.append({ "solution": "standard", "theta": theta_float, "r": r })
 
 def fsolve_polar(exprs, domain, solutions):
@@ -41,7 +41,7 @@ def fsolve_polar(exprs, domain, solutions):
 
     for theta_nf in solves:
         theta_f = float(theta_nf)
-        r = exprs[0].evalf(subs={theta: theta_f}, n=PRECISION)
+        r = float(exprs[0].evalf(subs={theta: theta_f}, n=PRECISION))
         solutions.append({ "solution": "standard", "theta": theta_f, "r": r })
 
 def solve_polar_intersections(exprs, domain):
@@ -64,23 +64,12 @@ def solve_polar_intersections(exprs, domain):
         fzero1 = []
         fzero2 = []
         for zero in zero1:
-            fzero1.append(N(zero, PRECISION));
+            fzero1.append(float(N(zero, PRECISION)));
         for zero in zero2:
-            fzero2.append(N(zero, PRECISION));
+            fzero2.append(float(N(zero, PRECISION)));
         solutions.append({ "solution": "origin", "expr1": fzero1, "expr2": fzero2 });
 
     return solutions
-
-def transform_solution(solution):
-    if solution["solution"] == "standard" and solution["r"] < 0:
-        solution["transformed"] = True;
-        solution["old_theta"] = solution["theta"];
-        solution["old_r"] = solution["r"];
-        solution["theta"] += np.pi;
-        solution["r"] *= -1;
-    else:
-        solution["transformed"] = False
-    return solution;
 
 def polar_get_info(expr, domain):
     solutions = solve_polar_intersections(expr, domain);
@@ -98,5 +87,16 @@ def polar_get_info(expr, domain):
     t_space2 = space + (range2 < 0) * np.pi;
     t_range1 = np.abs(range1);
     t_range2 = np.abs(range2);
+
+    def transform_solution(solution):
+        if solution["solution"] == "standard" and solution["r"] < 0:
+            solution["transformed"] = True;
+            solution["old_theta"] = solution["theta"];
+            solution["old_r"] = solution["r"];
+            solution["theta"] += np.pi;
+            solution["r"] *= -1;
+        else:
+            solution["transformed"] = False
+        return solution;
 
     return { "solutions": [transform_solution(solution) for solution in solutions], "expr1": [t_space1, t_range1], "expr2": [t_space2, t_range2], "raw": [space, range1, range2] };

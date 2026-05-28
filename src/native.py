@@ -39,7 +39,7 @@ for solution in info["solutions"]:
 
 for region in regions:
     print(region);
-    ax.plot([region[0], region[0]], [0, 2], linewidth=2.5);
+    ax.plot([region["bounds"][0], region["bounds"][0]], [0, 2], linewidth=2.5);
 
 ax.legend();
 plt.show();
