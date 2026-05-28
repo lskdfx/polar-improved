@@ -37,6 +37,15 @@ def fsolve_polar(exprs, domain, solutions):
     solves = fsolve(eqn, guesses);
 
     solves = solves[(solves >= d_start) & (solves <= d_end)];
+    solves = np.sort(solves);
+
+    residuals = np.abs(eqn(solves));
+    solves = solves[residuals < 1e-6];
+
+    if len(solves) > 1:
+        mask = np.concatenate([[True], np.diff(solves) > 1e-4]);
+        solves = solves[mask];
+
     solves = np.unique(np.round(solves, decimals=PRECISION));
 
     for theta_nf in solves:
