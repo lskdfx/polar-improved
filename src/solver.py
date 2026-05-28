@@ -79,8 +79,8 @@ def polar_get_info(expr, domain):
 
     space, _, _ = domain_linspace(domain);
 
-    range1 = func1(space);
-    range2 = func2(space);
+    range1 = np.asarray(func1(space)) * np.ones_like(space);
+    range2 = np.asarray(func2(space)) * np.ones_like(space);
 
     # apply negative transformation. matplotlib doesn't do this?
     t_space1 = space + (range1 < 0) * np.pi;

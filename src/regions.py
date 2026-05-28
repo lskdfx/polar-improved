@@ -1,186 +1,169 @@
 import numpy as np
-from sympy import Interval
+from sympy import solveset, Eq, FiniteSet, N, lambdify, integrate
+from sympy.abc import theta as sym_theta
 
-PRECISION = 5
-POINTS_PER_ONE = 100
-DECIMAL_PRECISION = 1/(10**PRECISION);
 
-def domain_start_end(domain):
-    if not isinstance(domain, Interval):
-        raise Exception("invalid domain");
-    start = float(domain.start);
-    end = float(domain.end);
+def get_unique_domain(expr, full_domain):
+    if float(full_domain.end) - float(full_domain.start) <= np.pi + 1e-6:
+        return full_domain, False
+    f = lambdify(sym_theta, expr, modules="numpy")
+    test_points = np.linspace(0, np.pi, 200)
+    for t in test_points:
+        r_t = f(t)
+        r_tp = f(t + np.pi)
+        if r_t >= 0 and r_tp >= 0:
+            return full_domain, False
+        if abs(r_t + r_tp) > 1e-6 * (abs(r_t) + 1):
+            return full_domain, False
+    for t in test_points:
+        if f(t) < -1e-6:
+            return full_domain, False
+    return full_domain, True
 
-    return [start, end];
 
-def sample_precomputed(space, r1, r2, point):
-    idx = np.searchsorted(space, point);
-    idx = min(idx, len(space) - 1);
-    return r1[idx], r2[idx];
+def solve_region_areas(exprs, domain, curves, solutions):
+    regions = []
+    if len(exprs) != 2:
+        return []
+    theta_values = [float(domain.left), float(domain.right)]
+    for expr in exprs:
+        zeros = solveset(Eq(expr, 0), sym_theta, domain=domain)
+        if isinstance(zeros, FiniteSet):
+            for z in zeros:
+                theta_values.append(float(N(z)))
+    for sol in solutions:
+        if sol["solution"] == "standard":
+            theta_values.append(float(sol["theta"]))
 
-def _in_set_tol(value, value_set, tol=1e-4):
-    return any(abs(value - v) < tol for v in value_set)
+    theta_values = sorted(set(theta_values))
+    unique = [theta_values[0]]
+    for t in theta_values[1:]:
+        if t - unique[-1] > 1e-3:
+            unique.append(t)
+    theta_values = unique
 
-def polar_find_regions(info, domain):
-    d_start, d_end = domain_start_end(domain);
-    space = info["raw"][0]; r1 = info["raw"][1]; r2 = info["raw"][2];
+    print(f"[regions] unique thetas: {len(theta_values)}")
+    retracing = [get_unique_domain(expr, domain)[1] for expr in exprs]
+    f0 = lambdify(sym_theta, exprs[0], modules="numpy")
+    f1 = lambdify(sym_theta, exprs[1], modules="numpy")
 
-    r1_zeros = set();
-    r2_zeros = set();
-    boundaries = set();
-    boundaries.add(d_start);
-    boundaries.add(d_end);
-
-    for solution in info["solutions"]:
-        if solution["solution"] == "standard":
-            t = solution["old_theta"] if solution["transformed"] else solution["theta"];
-            boundaries.add(t);
-        elif solution["solution"] == "origin":
-            for t in solution["expr1"]:
-                boundaries.add(t);
-                r1_zeros.add(t);
-            for t in solution["expr2"]:
-                boundaries.add(t);
-                r2_zeros.add(t);
-
-    boundaries = sorted(boundaries);
-
-    sub_intervals = [];
-    for one, two in zip(boundaries, boundaries[1:]):
-        if two - one < DECIMAL_PRECISION:
-            continue;
-        midpoint = (one + two) / 2;
-        m1, m2 = sample_precomputed(space, r1, r2, midpoint);
-        s1 = int(np.sign(m1));
-        s2 = int(np.sign(m2));
-        if s1 != 0 and s1 == s2:
-            kind = "kept";
+    for i in range(len(theta_values) - 1):
+        theta_left = theta_values[i]
+        theta_right = theta_values[i + 1]
+        theta_mid = (theta_left + theta_right) / 2
+        r0_signed = float(f0(theta_mid))
+        r1_signed = float(f1(theta_mid))
+        r0 = abs(r0_signed)
+        r1 = abs(r1_signed)
+        if abs(theta_left - theta_right) <= 1e-9:
+            continue
+        if r0 < r1:
+            inner = 0
+            outer = 1
+            outer_signed = r1_signed
+            outer_retraces = retracing[1]
         else:
-            kind = "skip";
-        sub_intervals.append({
-            "start": one, "end": two,
-            "m1": m1, "m2": m2,
-            "s1": s1, "s2": s2,
-            "kind": kind,
-        });
+            inner = 1
+            outer = 0
+            outer_signed = r0_signed
+            outer_retraces = retracing[0]
+        inner_signed = r0_signed if inner == 0 else r1_signed
+        inner_retraces = retracing[inner]
+        if outer_retraces and outer_signed < 0:
+            if inner_retraces and inner_signed < 0:
+                continue
+            if abs(inner_signed) < 1e-9:
+                continue
+        # origin to inner curve
+        regions.append({
+            "id": len(regions),
+            "theta1": theta_left,
+            "theta2": theta_right,
+            "r_inner_expr": 0,
+            "r_outer_expr": exprs[inner],
+            "inner_idx": -1,
+            "outer_idx": inner,
+            "area": float(integrate((exprs[inner] ** 2) / 2, (sym_theta, theta_left, theta_right))),
+            "label": f"Origin → f{inner + 1}",
+        })
+        # inner curve to outer curve
+        regions.append({
+            "id": len(regions),
+            "theta1": theta_left,
+            "theta2": theta_right,
+            "r_inner_expr": exprs[inner],
+            "r_outer_expr": exprs[outer],
+            "inner_idx": inner,
+            "outer_idx": outer,
+            "area": float(integrate(((exprs[outer] ** 2) - (exprs[inner] ** 2)) / 2, (sym_theta, theta_left, theta_right))),
+            "label": f"f{inner + 1} → f{outer + 1}",
+        })
+    return regions
 
-    def outer_of(sub):
-        if abs(sub["m1"]) >= abs(sub["m2"]):
-            return (1, sub["s1"]);
-        return (2, sub["s1"]);
 
-    merged = [];
-    i = 0;
-    while i < len(sub_intervals):
-        if sub_intervals[i]["kind"] != "kept":
-            i += 1;
-            continue;
-        start = sub_intervals[i]["start"];
-        end = sub_intervals[i]["end"];
-        outer_curve, outer_sign = outer_of(sub_intervals[i]);
-        j = i;
-        while j + 2 < len(sub_intervals):
-            skip = sub_intervals[j + 1];
-            nxt = sub_intervals[j + 2];
-            if skip["kind"] != "skip" or nxt["kind"] != "kept":
-                break;
-            next_outer = outer_of(nxt);
-            if next_outer != (outer_curve, outer_sign):
-                break;
-            inner_zeros = r2_zeros if outer_curve == 1 else r1_zeros;
-            if not (_in_set_tol(skip["start"], inner_zeros) and _in_set_tol(skip["end"], inner_zeros)):
-                break;
-            end = nxt["end"];
-            j += 2;
-        merged.append([start, end]);
-        i = j + 1;
-
-    two_pi = 2 * np.pi;
-    DEDUP_TOL = 1e-3;
-    seen_ranges = [];
-    regions = [];
-    for start, end in merged:
-        r1_start = float(np.interp(start, space, r1));
-        r1_end = float(np.interp(end, space, r1));
-        r2_start = float(np.interp(start, space, r2));
-        r2_end = float(np.interp(end, space, r2));
-
-        end_sign = 0;
-        for v in (r1_start, r2_start, r1_end, r2_end):
-            if abs(v) > 1e-8:
-                end_sign = int(np.sign(v));
-                break;
-        if end_sign == 0:
-            continue;
-
-        if end_sign < 0:
-            t_start = (start + np.pi) % two_pi;
-            t_end = (end + np.pi) % two_pi;
+def region_on_click(exprs, theta_val, r_val, regions):
+    if len(exprs) != 2:
+        return None
+    for region in regions:
+        if not (region["theta1"] <= theta_val <= region["theta2"]):
+            continue
+        if region["inner_idx"] == -1:
+            r_inner = 0.0
         else:
-            t_start = start % two_pi;
-            t_end = end % two_pi;
+            r_inner = float(lambdify(sym_theta, region["r_inner_expr"], modules="numpy")(theta_val))
+        r_outer = float(lambdify(sym_theta, region["r_outer_expr"], modules="numpy")(theta_val))
+        if r_inner <= r_val <= r_outer:
+            return region
+    return None
 
-        is_dup = False;
-        for s, e in seen_ranges:
-            if abs(s - t_start) < DEDUP_TOL and abs(e - t_end) < DEDUP_TOL:
-                is_dup = True;
-                break;
-        if is_dup:
-            continue;
-        seen_ranges.append((t_start, t_end));
-        regions.append([start, end]);
 
-    print(f"[regions] found {len(regions)} regions");
+def compute_frames_animation(region, curves):
+    theta_start = region["theta1"]
+    theta_end = region["theta2"]
+    frames = []
+    for i in range(1, 31):
+        frac = i / 30
+        theta_current = theta_start + frac * (theta_end - theta_start)
+        theta_grid = np.linspace(theta_start, theta_current, 50)
+        outer_r = np.interp(theta_grid, curves[region["outer_idx"]]["theta"], curves[region["outer_idx"]]["r"])
+        inner_r = (
+            np.zeros(50)
+            if region["inner_idx"] == -1
+            else np.interp(theta_grid, curves[region["inner_idx"]]["theta"], curves[region["inner_idx"]]["r"])
+        )
+        list_theta = np.concatenate([theta_grid, theta_grid[::-1]])
+        list_r = np.concatenate([outer_r, inner_r[::-1]])
+        frames.append({"theta": list_theta.tolist(), "r": list_r.tolist()})
+    return frames
 
-    def transform_region(region_bounds):
-        start, end = region_bounds;
 
-        start_idx = np.searchsorted(space, start, side='right');
-        end_idx = np.searchsorted(space, end, side='left');
-        inner_space = space[start_idx:end_idx];
-        inner_r1 = r1[start_idx:end_idx];
-        inner_r2 = r2[start_idx:end_idx];
+def sample_region_polygon(region, n=80):
+    t1 = region["theta1"]
+    t2 = region["theta2"]
+    if t2 - t1 < 1e-9:
+        return [], []
+    tg = np.linspace(t1, t2, n)
+    outer_f = lambdify(sym_theta, region["r_outer_expr"], modules="numpy")
+    outer_signed = np.atleast_1d(np.asarray(outer_f(tg), dtype=float))
+    if outer_signed.size == 1:
+        outer_signed = np.full(n, outer_signed[0])
 
-        start_r1 = float(np.interp(start, space, r1));
-        end_r1 = float(np.interp(end, space, r1));
-        start_r2 = float(np.interp(start, space, r2));
-        end_r2 = float(np.interp(end, space, r2));
+    mid_idx = n // 2
+    outer_sign = 1 if outer_signed[mid_idx] >= 0 else -1
 
-        r_space = np.concatenate([[start], inner_space, [end]]);
-        r1_arr = np.concatenate([[start_r1], inner_r1, [end_r1]]);
-        r2_arr = np.concatenate([[start_r2], inner_r2, [end_r2]]);
+    if region["inner_idx"] == -1:
+        inner_signed = np.zeros(n)
+        inner_r = inner_signed
+    else:
+        inner_f = lambdify(sym_theta, region["r_inner_expr"], modules="numpy")
+        inner_signed = np.atleast_1d(np.asarray(inner_f(tg), dtype=float))
+        if inner_signed.size == 1:
+            inner_signed = np.full(n, inner_signed[0])
+        inner_r = np.where(np.sign(inner_signed) == outer_sign, np.abs(inner_signed), 0.0)
 
-        end_sign = 0;
-        for v in (start_r1, start_r2, end_r1, end_r2):
-            if abs(v) > 1e-8:
-                end_sign = int(np.sign(v));
-                break;
-        if end_sign == 0:
-            end_sign = 1;
+    outer_r = np.abs(outer_signed)
 
-        def matches_side(arr):
-            return np.all((np.sign(arr) == end_sign) | (np.abs(arr) < 1e-8));
-        r1_consistent = matches_side(r1_arr);
-        r2_consistent = matches_side(r2_arr);
-
-        mid = len(r_space) // 2;
-        if r1_consistent and r2_consistent:
-            if abs(r1_arr[mid]) >= abs(r2_arr[mid]):
-                outer_r, inner_r = r1_arr, r2_arr;
-            else:
-                outer_r, inner_r = r2_arr, r1_arr;
-        elif r1_consistent:
-            outer_r, inner_r = r1_arr, r2_arr;
-        elif r2_consistent:
-            outer_r, inner_r = r2_arr, r1_arr;
-        else:
-            outer_r, inner_r = r1_arr, r2_arr;
-
-        physical_theta = r_space + (0 if end_sign > 0 else np.pi);
-        r_top = np.abs(outer_r);
-        same_side = (np.sign(inner_r) == end_sign);
-        r_bottom = np.where(same_side, np.abs(inner_r), 0.0);
-
-        return { "bounds": region_bounds, "top": [physical_theta, r_top], "bottom": [physical_theta, r_bottom] };
-
-    return [transform_region(region) for region in regions]
+    plot_theta = tg + (0.0 if outer_sign >= 0 else np.pi)
+    theta_poly = np.concatenate([plot_theta, plot_theta[::-1]])
+    r_poly = np.concatenate([outer_r, inner_r[::-1]])
+    return np.degrees(theta_poly).tolist(), r_poly.tolist()

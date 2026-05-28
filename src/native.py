@@ -1,6 +1,5 @@
-from eqninput import parse_polar 
+from eqninput import parse_polar
 from solver import polar_get_info
-from regions import polar_find_regions
 
 from sympy import Interval, pi
 import matplotlib.pyplot as plt
@@ -24,8 +23,6 @@ info = polar_get_info(expr, domain);
 for solution in info["solutions"]:
     print(solution)
 
-regions = polar_find_regions(info, domain);
-
 fig, ax = plt.subplots(subplot_kw={"projection": "polar"});
 
 ax.plot(info["expr1"][0], info["expr1"][1], label=str(expr[0]));
@@ -36,10 +33,6 @@ for solution in info["solutions"]:
         ax.plot(solution["theta"], solution["r"], marker="o");
     elif solution["solution"] == "origin":
         ax.plot(0, 0, marker="o");
-
-for region in regions:
-    print(region);
-    ax.plot([region["bounds"][0], region["bounds"][0]], [0, 2], linewidth=2.5);
 
 ax.legend();
 plt.show();
