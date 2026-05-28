@@ -1,6 +1,9 @@
-import 'mathlive'
+import { MathfieldElement } from 'mathlive'
 import React, { useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
+
+MathfieldElement.fontsDirectory = 'https://unpkg.com/mathlive@0.109.2/fonts/';
+MathfieldElement.soundsDirectory = 'https://unpkg.com/mathlive@0.109.2/sounds/';
 
 /**
  * ExampleComponent is an example component.
