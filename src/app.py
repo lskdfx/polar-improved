@@ -2,6 +2,7 @@ from dash import Dash, html, dcc, callback, Output, Input
 import plotly.express as px
 import plotly.graph_objects as go
 from dash_mathlive import dash_mathlive
+import os
 
 GRAPH_BG="#eff1f5"
 GRAPH_PLOT_BG="#e6e9ef"
@@ -133,5 +134,5 @@ def update(eqn1, eqn2, domain_start, domain_end):
         pass
 
     return fig;
-
-app.run(debug=False);
+port = int(os.environ.get("PORT", 8050))
+app.run(debug=False, host="0.0.0.0", port = port);
