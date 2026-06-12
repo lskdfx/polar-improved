@@ -62,6 +62,7 @@ There are 2 LaTeX input fields that take in input from the user for both graphs,
 3. **Activate the venv (differs depending on shell)**
   source .venv/bin/activate
 4. **Install required packages**
+  cd src
   pip install -r requirements.txt
 5. **Run**
   If you want the web view: python src/app.py
