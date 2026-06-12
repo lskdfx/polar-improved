@@ -5,7 +5,7 @@ scipy
 lark
 PyQt6
 antlr4-python3-runtime==4.11.1
--e ../dash_mathlive
+./dash_mathlive
 dash
 plotly
 gunicorn
