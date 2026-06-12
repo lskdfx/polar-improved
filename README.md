@@ -71,3 +71,9 @@ There are 2 LaTeX input fields that take in input from the user for both graphs,
 7. **Run**
   If you want the web view: python src/app.py
   To test intersections and regions using matplotlib: python src/native.py
+
+
+## AI Usage
+AI was used in this project in the following ways:
+1. Helping to debug app.py so that it works on Render
+2. Helping fix bugs in regions.py and solver.py
