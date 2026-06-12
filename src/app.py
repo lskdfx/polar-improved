@@ -55,6 +55,8 @@ app.layout = [
     html.Div(children=dcc.Graph(id="graph", figure=blank_polar(), responsive=True), className="graph"),
 ];
 
+server = app.server
+
 @callback(
     Output("graph", "figure"),
     Input("math-field-1", "value"),
