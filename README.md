@@ -4,11 +4,11 @@ Web-based polar grapher to graph polar functions and show the intersection of th
 
 ## Screenshots
 
-![Default view](screenshots/Screenshot_20260611_174528)
+![Default view](screenshots/Screenshot_20260611_174528.png)
 
 The default view of the project when it's first opened.
 
-![AP Calc BC 2026 Polar FRQ](screenshots/Screenshot_20260611_174628)
+![AP Calc BC 2026 Polar FRQ](screenshots/Screenshot_20260611_174628.png)
 
 Function graphed from this year (2026)'s AP Calc BC polar FRQ.
 
@@ -59,11 +59,15 @@ There are 2 LaTeX input fields that take in input from the user for both graphs,
 2. **Create a virtual environment**:
    ```bash
    python3 -m venv .venv
-3. **Activate the venv (differs depending on shell)**
+3. **Activate the venv (differs depending on shell)**:
+  ```bash
   source .venv/bin/activate
-4. **Install required packages**
+  ```
+5. **Install required packages**:
+  ```bash
   cd src
   pip install -r requirements.txt
-5. **Run**
+  ```
+7. **Run**
   If you want the web view: python src/app.py
   To test intersections and regions using matplotlib: python src/native.py
